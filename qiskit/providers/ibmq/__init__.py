@@ -1,42 +1,103 @@
 # -*- coding: utf-8 -*-
 
-# Copyright 2018, IBM.
+# This code is part of Qiskit.
 #
-# This source code is licensed under the Apache License, Version 2.0 found in
-# the LICENSE.txt file in the root directory of this source tree.
+# (C) Copyright IBM 2017, 2018.
+#
+# This code is licensed under the Apache License, Version 2.0. You may
+# obtain a copy of this license in the LICENSE.txt file in the root directory
+# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+#
+# Any modifications or derivative works of this code must retain this
+# copyright notice, and modified files need to carry a notice indicating
+# that they have been altered from the originals.
 
-"""Backends provided by IBM Quantum Experience."""
+"""
+===================================================
+IBM Quantum Provider (:mod:`qiskit.providers.ibmq`)
+===================================================
 
-from qiskit.exceptions import QiskitError
-from .ibmqprovider import IBMQProvider
-from .ibmqbackend import IBMQBackend
-from .ibmqjob import IBMQJob
+.. currentmodule:: qiskit.providers.ibmq
+
+Modules representing the IBM Quantum Provider.
+
+Functions
+=========
+.. autosummary::
+    :toctree: ../stubs/
+
+    least_busy
+
+Classes
+=======
+.. autosummary::
+    :toctree: ../stubs/
+
+    AccountProvider
+    BackendJobLimit
+    IBMQBackend
+    IBMQBackendService
+    IBMQFactory
+
+Exceptions
+==========
+.. autosummary::
+    :toctree: ../stubs/
+
+    IBMQError
+    IBMQAccountError
+    IBMQAccountCredentialsNotFound
+    IBMQAccountCredentialsInvalidFormat
+    IBMQAccountCredentialsInvalidToken
+    IBMQAccountCredentialsInvalidUrl
+    IBMQAccountMultipleCredentialsFound
+    IBMQBackendError
+    IBMQBackendApiError
+    IBMQBackendApiProtocolError
+    IBMQBackendValueError
+    IBMQProviderError
+"""
+
+from typing import List
+
+from .ibmqfactory import IBMQFactory
+from .ibmqbackend import IBMQBackend, BaseBackend
+from .job import IBMQJob
+from .managed import IBMQJobManager
+from .accountprovider import AccountProvider
+from .backendjoblimit import BackendJobLimit
+from .exceptions import *
+from .ibmqbackendservice import IBMQBackendService
 
 from .version import __version__
 
-# Global instance to be used as the entry point for convenience.
-IBMQ = IBMQProvider()
+IBMQ = IBMQFactory()
+"""A global instance of an account manager that is used as the entry point for convenience."""
 
 
-def least_busy(backends):
+def least_busy(backends: List[BaseBackend]) -> BaseBackend:
     """Return the least busy backend from a list.
 
     Return the least busy available backend for those that
-    have a `pending_jobs` in their `status`. Backends such as
-    local backends that do not have this are not considered.
+    have a ``pending_jobs`` in their ``status``. Note that local
+    backends may not have this attribute.
 
     Args:
-        backends (list[BaseBackend]): backends to choose from
+        backends: The backends to choose from.
 
     Returns:
-        BaseBackend: the the least busy backend
+        The backend with the fewest number of pending jobs.
 
     Raises:
-        QiskitError: if passing a list of backend names that is
-            either empty or none have attribute ``pending_jobs``
+        IBMQError: If the backends list is empty or if a backend in the list
+            does not have the ``pending_jobs`` attribute in its status.
     """
     try:
         return min([b for b in backends if b.status().operational],
                    key=lambda b: b.status().pending_jobs)
     except (ValueError, TypeError):
-        raise QiskitError("Can only find least_busy backend from a non-empty list.")
+        raise IBMQError('Unable to find the least_busy '
+                        'backend from an empty list.') from None
+    except AttributeError as ex:
+        raise IBMQError('A backend in the list does not have the `pending_jobs` '
+                        'attribute in its status.') from ex
